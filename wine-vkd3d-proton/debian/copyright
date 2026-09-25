@@ -1,0 +1,19 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: vkd3d-proton
+Source: https://github.com/HansKristian-Work/vkd3d-proton
+
+Files: *
+Copyright: 2016-2026 the vkd3d and vkd3d-proton authors
+License: LGPL-2.1+
+ This library is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1 of the License, or (at
+ your option) any later version.
+ .
+ On Debian systems, the full text of the GNU Lesser General Public
+ License version 2.1 can be found in the file
+ `/usr/share/common-licenses/LGPL-2.1'.
+
+Files: debian/*
+Copyright: 2026 yjlee
+License: LGPL-2.1+

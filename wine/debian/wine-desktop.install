@@ -1,0 +1,7 @@
+usr/share/applications/
+usr/share/desktop-directories/
+usr/share/icons/
+usr/share/metainfo/
+etc/xdg/menus/applications-merged/wine.menu
+usr/lib/binfmt.d/wine.conf
+usr/lib/modules-load.d/ntsync.conf

@@ -1,0 +1,10 @@
+wine-vkd3d-proton (3.0.1-1) trixie; urgency=medium
+
+  * Debian packaging, converted from the Fedora wine-vkd3d-proton spec:
+    - vkd3d-proton 3.0.1 release
+    - arm64ec and i686 PE builds using bylaws llvm-mingw, winebuild
+      --builtin postprocessing
+    - d3d12/d3d12core registered through update-alternatives (vkd3d
+      priority 20, or 5 when Vulkan is not usable)
+
+ -- yjlee <yjlee@localhost>  Thu, 24 Sep 2026 19:30:00 +0900

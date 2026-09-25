@@ -1,0 +1,21 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: FEX
+Source: https://fex-emu.com
+
+Files: *
+Copyright: 2019-2026 FEX-Emu contributors
+License: MIT
+ FEX is free software; you can redistribute it and/or modify it under
+ the terms of the MIT License.
+ .
+ On Debian systems, the full text of the MIT License can be found in
+ the file `/usr/share/common-licenses/MIT'.
+ .
+ This source tree bundles a number of third-party libraries (Catch2,
+ Vulkan-Headers, drm-headers, fmt, jemalloc, range-v3, rpmalloc, tracy,
+ unordered_dense, vixl, xxhash, zydis, cpp-optparse); see External/ in
+ the source tarball for their respective licenses.
+
+Files: debian/*
+Copyright: 2026 yjlee
+License: MIT

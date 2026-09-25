@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    prio=20
+    if command -v vulkaninfo >/dev/null 2>&1; then
+        if vulkaninfo 2>&1 | grep -q "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete"; then
+            prio=5
+        fi
+    fi
+    for suffix in aarch64 i386; do
+        lib=/usr/lib/wine/$suffix-windows
+        update-alternatives --install $lib/dxgi.dll wine-dxgi-$suffix \
+            $lib/dxvk-dxgi.dll $prio
+        update-alternatives --install $lib/d3d8.dll wine-d3d8-$suffix \
+            $lib/dxvk-d3d8.dll $prio
+        update-alternatives --install $lib/d3d9.dll wine-d3d9-$suffix \
+            $lib/dxvk-d3d9.dll $prio
+        update-alternatives --install $lib/d3d10core.dll wine-d3d10core-$suffix \
+            $lib/dxvk-d3d10core.dll $prio
+        update-alternatives --install $lib/d3d11.dll wine-d3d11-$suffix \
+            $lib/dxvk-d3d11.dll $prio
+    done
+fi
+
+#DEBHELPER#

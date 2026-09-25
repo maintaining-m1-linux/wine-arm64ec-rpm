@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
+    update-alternatives --remove wine /usr/bin/wine64
+    update-alternatives --remove wineserver /usr/bin/wineserver64
+
+    for suffix in aarch64 i386; do
+        lib=/usr/lib/wine/$suffix-windows
+        update-alternatives --remove wine-dxgi-$suffix $lib/wine-dxgi.dll
+        update-alternatives --remove wine-d3d8-$suffix $lib/wine-d3d8.dll
+        update-alternatives --remove wine-d3d9-$suffix $lib/wine-d3d9.dll
+        update-alternatives --remove wine-d3d10-$suffix $lib/wine-d3d10.dll
+        update-alternatives --remove wine-d3d10core-$suffix $lib/wine-d3d10core.dll
+        update-alternatives --remove wine-d3d11-$suffix $lib/wine-d3d11.dll
+        update-alternatives --remove wine-d3d12-$suffix $lib/wine-d3d12.dll
+    done
+fi
+
+#DEBHELPER#

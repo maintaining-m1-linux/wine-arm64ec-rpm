@@ -1,0 +1,51 @@
+#!/usr/bin/make -f
+# Debian rules for wine-dxvk (ARM64EC + i386 DXVK DLLs).
+# Converted from wine-dxvk-git.spec.
+
+include debian/upstream.mk
+
+DLCACHE ?= $(if $(wildcard /dlcache),/dlcache,$(CURDIR)/debian/dlcache)
+
+export CFLAGS := -DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto
+export CXXFLAGS := $(CFLAGS) -fpermissive
+export LDFLAGS := -fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto
+export PATH := $(CURDIR)/$(LLVM_MINGW_DIR)/bin:$(PATH)
+
+DXDLLS := dxgi d3d8 d3d9 d3d10core d3d11
+
+%:
+	dh $@
+
+override_dh_update_autotools_config:
+	DLCACHE=$(DLCACHE) sh debian/prepare.sh
+	cp debian/build-arm64ec.txt build-arm64ec.txt
+	cp debian/build-i686.txt build-i686.txt
+
+override_dh_auto_configure:
+	meson setup --cross-file build-arm64ec.txt --buildtype=release -Dbuild_id=true build-arm64ec .
+	meson setup --cross-file build-i686.txt --buildtype=release -Dbuild_id=true build-i686 .
+
+override_dh_auto_build:
+	meson compile -C build-arm64ec
+	meson compile -C build-i686
+
+override_dh_auto_install:
+	install -d debian/tmp/usr/lib/wine/aarch64-windows
+	for dll in $(DXDLLS); do \
+	    f=$$(find build-arm64ec/src -name $$dll.dll | head -n1); \
+	    install -m 644 $$f debian/tmp/usr/lib/wine/aarch64-windows/dxvk-$$dll.dll; \
+	    winebuild --builtin debian/tmp/usr/lib/wine/aarch64-windows/dxvk-$$dll.dll; \
+	done
+	install -d debian/tmp/usr/lib/wine/i386-windows
+	for dll in $(DXDLLS); do \
+	    f=$$(find build-i686/src -name $$dll.dll | head -n1); \
+	    install -m 644 $$f debian/tmp/usr/lib/wine/i386-windows/dxvk-$$dll.dll; \
+	    winebuild --builtin debian/tmp/usr/lib/wine/i386-windows/dxvk-$$dll.dll; \
+	done
+
+override_dh_makeshlibs:
+	@:
+
+override_dh_dwz:
+	# dwz chokes on the mingw-generated debug info
+	@:

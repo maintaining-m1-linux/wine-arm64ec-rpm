@@ -1,0 +1,33 @@
+Source: wine-dxvk
+Section: libs
+Priority: optional
+Maintainer: yjlee <yjlee@localhost>
+Build-Depends:
+ debhelper-compat (= 13),
+ meson,
+ glslang-tools,
+ wine-dev,
+ pkgconf,
+ curl,
+ ca-certificates,
+ xz-utils,
+ python3,
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+
+Package: wine-dxvk
+Architecture: arm64
+Depends:
+ wine-core,
+ ${misc:Depends},
+Recommends:
+ vulkan-tools,
+ vulkan-icd,
+Description: Vulkan-based D3D8/9/10/11 for Wine (ARM64EC)
+ DXVK provides Vulkan-based implementations of DXGI and the D3D8,
+ D3D9, D3D10 and D3D11 APIs for wine, built here as aarch64 (ARM64EC)
+ and i386 Windows DLLs for use with the ARM64EC wine build.
+ .
+ The DLLs are registered through update-alternatives against wine's
+ builtin implementations with priority 20 (5 when Vulkan is not
+ usable at install time); per-prefix WINEDLLOVERRIDES still apply.

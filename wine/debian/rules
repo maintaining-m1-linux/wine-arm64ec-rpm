@@ -1,0 +1,279 @@
+#!/usr/bin/make -f
+# Debian rules for the ARM64EC wine build (aarch64).
+# Converted from wine-git.spec (Fedora): same patch order, same configure
+# flags, same install-time rearrangement.
+
+include debian/upstream.mk
+
+DLCACHE ?= $(if $(wildcard /dlcache),/dlcache,$(CURDIR)/debian/dlcache)
+
+# wine-staging tarball (fetched once, kept in the download cache)
+STAGING_TARBALL := wine-staging-$(STAGING_COMMIT).tar.gz
+STAGING_URL := https://gitlab.winehq.org/wine/wine-staging/-/archive/$(STAGING_COMMIT)/$(STAGING_TARBALL)
+
+# bylaws llvm-mingw toolchain for the PE builds: Debian trixie's system
+# lld (19) rejects the duplicate .CRT$XC bracket symbols that winebuild
+# emits for ARM64X dlls (accepted by lld >= 20, which is what Fedora 42+
+# ships). llvm-mingw 21 links them fine and is the same toolchain the
+# FEX/DXVK builds already use.
+LLVM_MINGW_DIR := llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64
+LLVM_MINGW_TARBALL := $(LLVM_MINGW_DIR).tar.xz
+LLVM_MINGW_URL := https://github.com/bylaws/llvm-mingw/releases/download/20250920/$(LLVM_MINGW_TARBALL)
+
+# wine-mono runtime shipped in the package (the MSI bootstrap is patched
+# out; see 2026_09_25-mscoree-skip-mono-msi-bootstrap.patch)
+WINEMONO_VERSION := 11.3.0
+WINEMONO_TARBALL := wine-mono-$(WINEMONO_VERSION)-arm64.tar.xz
+WINEMONO_URL := https://dl.winehq.org/wine/wine-mono/$(WINEMONO_VERSION)/$(WINEMONO_TARBALL)
+
+# mirrors the Fedora spec: no fortify/stack-protector (breaks wine), no LTO.
+# dpkg injects -mbranch-protection=standard on arm64, which the Fedora
+# spec strips because it breaks wine on Apple M2 (armv8.6-a) -- this host.
+export DEB_BUILD_MAINT_OPTIONS := hardening=-fortify,-stackprotector optimize=-lto
+export DEB_CFLAGS_MAINT_STRIP := -mbranch-protection=standard
+export DEB_CXXFLAGS_MAINT_STRIP := -mbranch-protection=standard
+export DEB_CFLAGS_MAINT_APPEND := -Wno-error
+export DEB_CXXFLAGS_MAINT_APPEND := -Wno-error
+
+export CC := /usr/bin/clang
+export CXX := /usr/bin/clang++
+
+# PE compilers (arm64ec/aarch64/i686-w64-mingw32-clang) come from the
+# llvm-mingw toolchain below; keep it first in PATH for configure's
+# compiler detection and for winegcc's runtime lookups. The unix-side
+# compiler stays the absolute path above.
+export PATH := $(DLCACHE)/$(LLVM_MINGW_DIR)/bin:$(PATH)
+
+WINE_PEDIRS := aarch64-windows i386-windows
+WINE_SODIRS := aarch64-unix i386-unix
+
+# the spec strips branch-protection flags on aarch64; Debian clang does not
+# add them by default, so nothing to strip here.
+
+%:
+	dh $@
+
+fetch-staging:
+	@mkdir -p $(DLCACHE)
+	@if [ ! -s $(DLCACHE)/$(STAGING_TARBALL) ]; then \
+		echo "Downloading $(STAGING_URL)"; \
+		curl -fL --retry 3 -o $(DLCACHE)/$(STAGING_TARBALL).tmp $(STAGING_URL); \
+		mv $(DLCACHE)/$(STAGING_TARBALL).tmp $(DLCACHE)/$(STAGING_TARBALL); \
+	fi
+	@cp $(DLCACHE)/$(STAGING_TARBALL) ../$(STAGING_TARBALL)
+	@if [ ! -x $(DLCACHE)/$(LLVM_MINGW_DIR)/bin/clang ]; then \
+		echo "Extracting $(LLVM_MINGW_TARBALL)"; \
+		rm -rf $(DLCACHE)/$(LLVM_MINGW_DIR); \
+		curl -fL --retry 3 -o $(DLCACHE)/$(LLVM_MINGW_TARBALL).tmp $(LLVM_MINGW_URL) && \
+		mv $(DLCACHE)/$(LLVM_MINGW_TARBALL).tmp $(DLCACHE)/$(LLVM_MINGW_TARBALL); \
+		tar -xJf $(DLCACHE)/$(LLVM_MINGW_TARBALL) -C $(DLCACHE); \
+	fi
+	@if [ ! -s $(DLCACHE)/$(WINEMONO_TARBALL) ]; then \
+		echo "Downloading $(WINEMONO_URL)"; \
+		curl -fL --retry 3 -o $(DLCACHE)/$(WINEMONO_TARBALL).tmp $(WINEMONO_URL); \
+		mv $(DLCACHE)/$(WINEMONO_TARBALL).tmp $(DLCACHE)/$(WINEMONO_TARBALL); \
+	fi
+
+override_dh_update_autotools_config: fetch-staging
+	# stamp-guarded so a packaging-only fix does not force a full rebuild
+	# order: wine-cjk first, then staging, then bylaws + our patches
+	if [ ! -f debian/.patched ]; then \
+		patch -p1 < debian/extra/wine-cjk.patch; \
+		tar -xf ../$(STAGING_TARBALL) --strip-components=1; \
+		python3 staging/patchinstall.py DESTDIR="$(CURDIR)" --all -W server-Stored_ACLs; \
+		patch -p1 -F3 < ../2026_08_17_bylaws_rebased.patch; \
+		patch -p0 -F3 < ../wine-mono-arm.patch; \
+		patch -p1 -F3 < ../2026_08_30-arm64ec-fex-bootstrap-order.patch; \
+		for p in \
+		  2026_09_15-msvcrt-idempotent-cxx-unregister \
+		  2026_09_15-uxtheme-clip-parent-background \
+		  2026_09_15-winewayland-popup-subsurfaces \
+		  2026_09_15-d2d1-layers-primitive-blend \
+		  2026_09_15-win32u-unclamped-window-sizes \
+		  2026_09_16-win32u-protect-paint-dc \
+		  2026_09_16-winewayland-follow-host-color-scheme \
+		  2026_09_16-win32u-monitor-physical-position \
+		  2026_09_16-comctl32-groupbox-caption-row \
+		  2026_09_16-win32u-vulkan-swapchain-pnext \
+		  2026_09_16-winewayland-primary-output \
+		  2026_09_17-winewayland-decorations-default \
+		  2026_09_17-d2d1-collinear-outline-join \
+		  2026_09_17-winewayland-tiled-fixed-size \
+		  2026_09_17-winewayland-follow-output \
+		  2026_09_17-win32u-extend-virtual-modes \
+		  2026_09_17-vkd3d-shader-state-block-keywords \
+		  2026_09_18-server-scale-dpi-signed \
+		  2026_09_25-mscoree-skip-mono-msi-bootstrap ; do \
+			patch -p1 < ../$$p.patch || exit 1; \
+		done; \
+		sed -i 's/-Wl,-WX//g' configure; \
+		touch debian/.patched; \
+	fi
+
+override_dh_autoreconf:
+	# only needed on the first pass (patches may touch configure.ac)
+	if [ ! -f debian/.patched ] || [ ! -f debian/.configured ]; then \
+		dh_autoreconf; \
+	fi
+
+CONFFLAGS = \
+	--prefix=/usr \
+	--libdir=/usr/lib \
+	--sysconfdir=/etc/wine \
+	--x-includes=/usr/include \
+	--x-libraries=/usr/lib \
+	--with-dbus \
+	--with-x \
+	--enable-win64 \
+	--enable-archs=arm64ec,aarch64,i386 \
+	--with-mingw=llvm-mingw \
+	--with-wayland \
+	--enable-crtdll \
+	--enable-ctl3d32 \
+	--enable-d3d8 \
+	--enable-d3dim \
+	--enable-d3dim700 \
+	--enable-dmband \
+	--enable-dmcompos \
+	--enable-dmime \
+	--enable-dmscript \
+	--enable-dmstyle \
+	--enable-dplay \
+	--enable-dplayx \
+	--enable-dpwsockx \
+	--enable-iccvid \
+	--enable-iprop \
+	--enable-msscript_ocx \
+	--enable-msvcp70 \
+	--enable-msvcp71 \
+	--enable-msvcr70 \
+	--enable-msvcr71 \
+	--enable-msvcrt20 \
+	--enable-msvcrt40 \
+	--enable-msvcrtd \
+	--enable-olecli32 \
+	--enable-olepro32 \
+	--enable-olethk32 \
+	--enable-vdmdbg \
+	--disable-tests
+
+override_dh_auto_configure:
+	# required so that both Linux and Windows development files can be found
+	if [ ! -f debian/.configured ]; then \
+		unset PKG_CONFIG_PATH; \
+		./configure $(CONFFLAGS); \
+		touch debian/.configured; \
+	fi
+
+override_dh_auto_build:
+	$(MAKE) TARGETFLAGS=""
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR="$(CURDIR)/debian/tmp" LDCONFIG=/bin/true UPDATE_DESKTOP_DATABASE=/bin/true
+	# rearrange: wine/wineserver -> wine64/wineserver64 (alternatives in postinst)
+	mv debian/tmp/usr/bin/wine debian/tmp/usr/bin/wine64
+	mv debian/tmp/usr/bin/wineserver debian/tmp/usr/bin/wineserver64
+	# rename the D3D DLLs so update-alternatives can switch between wine's
+	# builtin and DXVK / vkd3d-proton
+	for d in $(WINE_PEDIRS); do \
+		for dll in dxgi d3d8 d3d9 d3d10 d3d10_1 d3d10core d3d11 d3d12 d3d12core; do \
+			mv debian/tmp/usr/lib/wine/$$d/$$dll.dll \
+			   debian/tmp/usr/lib/wine/$$d/wine-$$dll.dll; \
+		done; \
+	done
+	# Fedora does not ship the i386 unix libs on aarch64 (they cannot be
+	# loaded natively; 32-bit code runs through FEX as PE)
+	rm -rf debian/tmp/usr/lib/wine/i386-unix
+	# stage the PE import libraries so wine-dev can claim them without
+	# dh_install file conflicts against wine-core's usr/lib/wine/ glob
+	mkdir -p debian/tmp/usr/lib/wine-importlibs/aarch64-windows \
+	         debian/tmp/usr/lib/wine-importlibs/i386-windows
+	mv debian/tmp/usr/lib/wine/aarch64-windows/*.a \
+	   debian/tmp/usr/lib/wine-importlibs/aarch64-windows/
+	mv debian/tmp/usr/lib/wine/i386-windows/*.a \
+	   debian/tmp/usr/lib/wine-importlibs/i386-windows/
+	# remove rpath from the toolchain binaries
+	chrpath --delete debian/tmp/usr/bin/wmc
+	chrpath --delete debian/tmp/usr/bin/wrc
+	chrpath --delete debian/tmp/usr/bin/wine64
+	chrpath --delete debian/tmp/usr/bin/wineserver64
+	# binfmt handler + ntsync module config
+	install -D -m 644 debian/extra/wine-binfmt.conf debian/tmp/usr/lib/binfmt.d/wine.conf
+	install -D -m 644 debian/extra/wine-ntsync.conf debian/tmp/usr/lib/modules-load.d/ntsync.conf
+	# desktop menu integration
+	install -D -m 644 debian/extra/wine.menu debian/tmp/etc/xdg/menus/applications-merged/wine.menu
+	install -D -m 644 debian/extra/wine.directory debian/tmp/usr/share/desktop-directories/Wine.directory
+	# gecko/mono dirs
+	mkdir -p debian/tmp/usr/share/wine/gecko debian/tmp/usr/share/wine/mono
+	# wine-mono runtime tree (patched-out MSI bootstrap finds it here)
+	tar -xJf $(DLCACHE)/$(WINEMONO_TARBALL) -C debian/tmp/usr/share/wine/mono
+	# icons (composite SVGs need the Fedora mask-down fix)
+	mkdir -p debian/tmp/usr/share/icons/hicolor/scalable/apps
+	PROGRAM_ICONFIX='s/height="272"/height="256"/;s/width="632"/width="256"\n   x="368"\n   y="8"\n   viewBox="368, 8, 256, 256"/;'
+	MAIN_ICONFIX='s/height="272"/height="256"/;s/width="632"/width="256"\n   x="8"\n   y="8"\n   viewBox="8, 8, 256, 256"/;'
+	install -m 644 dlls/user32/resources/oic_winlogo.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/wine.svg
+	sed -i -e "$$MAIN_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/wine.svg
+	install -m 644 programs/notepad/notepad.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/notepad.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/notepad.svg
+	install -m 644 programs/regedit/regedit.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/regedit.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/regedit.svg
+	install -m 644 programs/msiexec/msiexec.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/msiexec.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/msiexec.svg
+	install -m 644 programs/winecfg/winecfg.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winecfg.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winecfg.svg
+	install -m 644 programs/winefile/winefile.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winefile.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winefile.svg
+	install -m 644 programs/winemine/winemine.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winemine.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winemine.svg
+	install -m 644 programs/winhlp32/winhelp.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winhelp.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winhelp.svg
+	install -m 644 programs/wordpad/wordpad.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/wordpad.svg
+	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/wordpad.svg
+	# desktop files
+	install -m 644 debian/extra/wine-*.desktop debian/tmp/usr/share/applications/
+	install -m 644 debian/extra/wine-mime-msi.desktop debian/tmp/usr/share/applications/
+	# wine's own wine.desktop: keep, but drop the one we may have copied twice
+	# appdata
+	install -D -m 644 debian/extra/wine.appdata.xml debian/tmp/usr/share/metainfo/wine.appdata.xml
+	# fontconfig for tahoma (no embedded bitmaps)
+	install -D -m 644 debian/extra/wine-tahoma.conf debian/tmp/etc/fonts/conf.avail/20-wine-tahoma-nobitmaps.conf
+	install -d debian/tmp/etc/fonts/conf.d
+	ln -sf ../conf.avail/20-wine-tahoma-nobitmaps.conf debian/tmp/etc/fonts/conf.d/20-wine-tahoma-nobitmaps.conf
+	# system font symlink farms
+	install -d debian/tmp/usr/share/fonts/wine-tahoma-fonts
+	ln -s ../../wine/fonts/tahoma.ttf debian/tmp/usr/share/fonts/wine-tahoma-fonts/tahoma.ttf
+	ln -s ../../wine/fonts/tahomabd.ttf debian/tmp/usr/share/fonts/wine-tahoma-fonts/tahomabd.ttf
+	install -d debian/tmp/usr/share/fonts/wine-times-new-roman-fonts
+	ln -s ../../wine/fonts/times.ttf debian/tmp/usr/share/fonts/wine-times-new-roman-fonts/times.ttf
+	install -d debian/tmp/usr/share/fonts/wine-wingdings-fonts
+	ln -s ../../wine/fonts/wingding.ttf debian/tmp/usr/share/fonts/wine-wingdings-fonts/wingding.ttf
+	# README for the tahoma fontconfig tweak
+	install -d debian/tmp/usr/share/doc/wine-fonts
+	install -m 644 debian/extra/README-tahoma debian/tmp/usr/share/doc/wine-fonts/README-tahoma
+	# re-encode the localized READMEs as UTF-8
+	set -e; cd documentation; \
+	for lang in de es fi fr hu it ja ko nl no pt_br pt ru sv tr uk zh_cn; do \
+		iconv -f iso8859-1 -t utf-8 README-$$lang.md > README-$$lang.md.conv \
+		&& mv -f README-$$lang.md.conv README-$$lang.md; \
+	done
+	# remove the init.d leftover if present
+	rm -f debian/tmp/etc/init.d/wine
+
+override_dh_makeshlibs:
+	# wine's unix libs are plugins loaded by the PE loader; no shlib symlinks
+	@:
+
+override_dh_dwz:
+	# dwz chokes on clang-generated debug info in these builds
+	@:
+
+override_dh_missing:
+	# report (do not fail on) files not claimed by any .install list yet
+	dh_missing
+
+override_dh_strip:
+	# GNU strip cannot handle the PE objects inside the wine import
+	# libraries (*.a); leave those unstripped
+	dh_strip -X.a
+
+.PHONY: fetch-staging

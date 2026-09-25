@@ -1,0 +1,32 @@
+wine (11.18~git2.df15af3-2) trixie; urgency=medium
+
+  * Fix 32-bit (WoW64/FEX) process startup: dpkg hardening flags added
+    -mbranch-protection=standard to the unix-side build, which breaks
+    wine on armv8.6-a (Apple Silicon) per the Fedora spec; strip it via
+    DEB_CFLAGS_MAINT_STRIP / DEB_CXXFLAGS_MAINT_STRIP.
+  * Add patch 621 (mscoree): never block boot on the wine-mono MSI
+    bootstrap. The wine-mono installer custom action targets a
+    different architecture than ARM64EC msiexec, and dl.winehq.org no
+    longer serves the generic wine-mono-11.3.0.msi.
+  * Ship the wine-mono 11.3.0 (arm64) runtime tree in wine-core at
+    /usr/share/wine/mono/wine-mono-11.3.0; mscoree finds it via
+    get_mono_path_unix, so .NET apps work without any MSI install.
+
+ -- yjlee <yjlee@localhost>  Fri, 25 Sep 2026 04:10:00 +0900
+
+wine (11.18~git2.df15af3-1) trixie; urgency=medium
+
+  * Debian packaging for the ARM64EC build (aarch64), converted from the
+    Fedora wine-git spec:
+    - upstream wine 11.18 snapshot df15af3652511150490934682202d45af892f887
+    - wine-staging 627ccf4f350f41c6cea57fda05f52e57ba9fab1f (--all,
+      minus server-Stored_ACLs)
+    - bylaws ARM64EC rebase (2026_08_17_bylaws_rebased.patch)
+    - wine-mono-arm, arm64ec-fex-bootstrap-order and patches 603-620
+    - configure: --enable-archs=arm64ec,aarch64,i386
+      --with-mingw=llvm-mingw (bylaws toolchain; trixie's lld 19 cannot
+      link the ARM64X .CRT sections), --with-wayland
+    - binary packages: wine, wine-core, wine-common, wine-desktop,
+      wine-fonts, wine-dev
+
+ -- yjlee <yjlee@localhost>  Thu, 24 Sep 2026 19:30:00 +0900

@@ -1,0 +1,25 @@
+usr/bin/function_grep.pl
+usr/bin/widl
+usr/bin/winebuild
+usr/bin/winecpp
+usr/bin/winedump
+usr/bin/wineg++
+usr/bin/winegcc
+usr/bin/winemaker
+usr/bin/wmc
+usr/bin/wrc
+usr/include/wine/
+usr/lib/wine-importlibs/aarch64-windows/*.a usr/lib/wine/aarch64-windows/
+usr/lib/wine-importlibs/i386-windows/*.a usr/lib/wine/i386-windows/
+usr/share/man/man1/widl.1*
+usr/share/man/man1/winebuild.1*
+usr/share/man/man1/winecpp.1*
+usr/share/man/man1/winedump.1*
+usr/share/man/man1/winegcc.1*
+usr/share/man/man1/winemaker.1*
+usr/share/man/man1/wmc.1*
+usr/share/man/man1/wrc.1*
+usr/share/man/man1/winedbg.1*
+usr/share/man/man1/wineg++.1*
+usr/share/man/de.UTF-8/man1/winemaker.1*
+usr/share/man/fr.UTF-8/man1/winemaker.1*

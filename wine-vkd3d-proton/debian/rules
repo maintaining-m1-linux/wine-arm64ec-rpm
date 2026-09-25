@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+# Debian rules for wine-vkd3d-proton (ARM64EC + i386 vkd3d-proton DLLs).
+# Converted from wine-vkd3d-proton.spec.
+
+include debian/upstream.mk
+
+DLCACHE ?= $(if $(wildcard /dlcache),/dlcache,$(CURDIR)/debian/dlcache)
+
+export CFLAGS := -DNDEBUG -O2 -fno-lto
+export CXXFLAGS := $(CFLAGS)
+export LDFLAGS := -Wl,--gc-sections -fno-lto
+export PATH := $(CURDIR)/$(LLVM_MINGW_DIR)/bin:$(PATH)
+
+VPDLLS := d3d12 d3d12core
+
+%:
+	dh $@
+
+override_dh_update_autotools_config:
+	DLCACHE=$(DLCACHE) sh debian/prepare.sh
+	cp debian/build-arm64ec.txt build-arm64ec.txt
+	cp debian/build-i686.txt build-i686.txt
+
+override_dh_auto_configure:
+	meson setup --cross-file build-arm64ec.txt --buildtype=release -Denable_tests=false build-arm64ec .
+	meson setup --cross-file build-i686.txt --buildtype=release -Denable_tests=false build-i686 .
+
+override_dh_auto_build:
+	meson compile -C build-arm64ec
+	meson compile -C build-i686
+
+override_dh_auto_install:
+	install -d debian/tmp/usr/lib/wine/aarch64-windows debian/tmp/usr/lib/wine/i386-windows
+	for dll in $(VPDLLS); do \
+	    f=$$(find build-arm64ec/libs/$$dll -name $$dll.dll | head -n1); \
+	    install -m 644 $$f debian/tmp/usr/lib/wine/aarch64-windows/vkd3d-proton-$$dll.dll; \
+	    winebuild --builtin debian/tmp/usr/lib/wine/aarch64-windows/vkd3d-proton-$$dll.dll; \
+	    f=$$(find build-i686/libs/$$dll -name $$dll.dll | head -n1); \
+	    install -m 644 $$f debian/tmp/usr/lib/wine/i386-windows/vkd3d-proton-$$dll.dll; \
+	    winebuild --builtin debian/tmp/usr/lib/wine/i386-windows/vkd3d-proton-$$dll.dll; \
+	done
+
+override_dh_makeshlibs:
+	@:
+
+override_dh_dwz:
+	# dwz chokes on the mingw-generated debug info
+	@:

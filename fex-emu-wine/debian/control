@@ -1,0 +1,46 @@
+Source: fex-emu-wine
+Section: otherosfs
+Priority: optional
+Maintainer: yjlee <yjlee@localhost>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake,
+ ninja-build,
+ clang,
+ lld,
+ llvm,
+ llvm-dev,
+ python3,
+ python3-setuptools,
+ pkgconf,
+ curl,
+ ca-certificates,
+ xz-utils,
+ libfmt-dev,
+ libepoxy-dev,
+ libsdl2-dev,
+ libxxhash-dev,
+ libasound2-dev,
+ libdrm-dev,
+ libglvnd-dev,
+ libx11-dev,
+ libxrandr-dev,
+ libssl-dev,
+ libwayland-dev,
+ zlib1g-dev,
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+
+Package: fex-emu-wine
+Architecture: arm64
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+Description: FEX DLLs enabling Wine's ARM64EC support
+ FEX-Emu based emulator DLLs that allow aarch64 hosts running wine to
+ execute x86 and x86_64 Windows code. Installed into wine's library
+ directories (/usr/lib/wine/aarch64-windows and .../aarch64-unix) and
+ loaded automatically by the wine ARM64EC loader.
+ .
+ This package builds the arm64ec and aarch64 PE DLLs plus the Wine
+ unixlib shim (.so) counterparts.

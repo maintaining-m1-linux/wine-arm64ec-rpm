@@ -1,0 +1,175 @@
+Source: wine
+Section: otherosfs
+Priority: optional
+Maintainer: yjlee <yjlee@localhost>
+Build-Depends:
+ debhelper-compat (= 13),
+ clang,
+ lld,
+ llvm,
+ llvm-dev,
+ bison,
+ flex,
+ autoconf,
+ pkgconf,
+ gettext,
+ chrpath,
+ icoutils,
+ desktop-file-utils,
+ librsvg2-bin,
+ fontforge-nox,
+ python3,
+ curl,
+ ca-certificates,
+ xz-utils,
+ libasound2-dev,
+ libaudiofile-dev,
+ freeglut3-dev,
+ libieee1284-3-dev,
+ libusb-1.0-0-dev,
+ ocl-icd-opencl-dev,
+ opencl-headers,
+ libldap2-dev,
+ unixodbc-dev,
+ libsane-dev,
+ libudev-dev,
+ libfreetype-dev,
+ libgphoto2-dev,
+ libpcap0.8-dev,
+ libx11-dev,
+ libgl-dev,
+ libglu1-mesa-dev,
+ libxxf86dga-dev,
+ libxxf86vm-dev,
+ libxrandr-dev,
+ libxrender-dev,
+ libxext-dev,
+ libxinerama-dev,
+ libxcomposite-dev,
+ libfontconfig-dev,
+ libgif-dev,
+ libcups2-dev,
+ libxmu-dev,
+ libxi-dev,
+ libxcursor-dev,
+ libdbus-1-dev,
+ libgnutls28-dev,
+ libpulse-dev,
+ libgsm1-dev,
+ libv4l-dev,
+ libgstreamer1.0-dev,
+ libgstreamer-plugins-base1.0-dev,
+ libmpg123-dev,
+ libsdl2-dev,
+ libvulkan-dev,
+ libpcsclite-dev,
+ libgtk-3-dev,
+ libattr1-dev,
+ libva-dev,
+ libwayland-dev,
+ wayland-protocols,
+ libxkbcommon-dev,
+ libavcodec-dev,
+ libavformat-dev,
+ libavutil-dev,
+ libswresample-dev,
+ libkrb5-dev,
+ libopenal-dev,
+ libncurses-dev,
+ libunwind-dev,
+ libosmesa6-dev,
+ libxt-dev,
+ libxfixes-dev,
+ libxkbfile-dev,
+ libxkbregistry-dev,
+ libcapi20-dev,
+ libdrm-dev,
+ zlib1g-dev,
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+
+Package: wine
+Architecture: all
+Depends:
+ wine-core (= ${binary:Version}),
+ wine-common (= ${binary:Version}),
+ wine-desktop (= ${binary:Version}),
+ wine-fonts (= ${binary:Version}),
+ ${misc:Depends},
+Recommends:
+ libnss-mdns,
+Description: Windows API implementation - standard suite (ARM64EC)
+ Wine is a compatibility layer which allows running Windows applications
+ on Linux. This metapackage installs the ARM64EC-capable build for
+ aarch64 hosts (Windows ARM64X/ARM64EC, i386 and win32 code runs
+ through FEX, see the fex-emu-wine package).
+ .
+ This build carries wine-staging, the bylaws ARM64EC patch set and
+ additional wine-wayland/d2d1/win32u fixes on top of upstream wine.
+
+Package: wine-core
+Architecture: arm64
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ fex-emu-wine,
+ libcups2,
+ libpng16-16,
+Conflicts: wine64, libwine
+Replaces: wine64, libwine
+Description: Windows API implementation - core libraries (ARM64EC)
+ The wine 64-bit (aarch64) loader, wineserver and the builtin
+ Windows DLLs (aarch64-windows, i386-windows and unix libraries).
+
+Package: wine-common
+Architecture: all
+Depends:
+ wine-core (= ${binary:Version}),
+ ${misc:Depends},
+Description: Windows API implementation - common utilities
+ Wrapper scripts and man pages for wine (winecfg, wineboot, regedit,
+ msiexec, notepad, winefile, winemine, winepath, winedbg, regsvr32,
+ wineconsole).
+
+Package: wine-desktop
+Architecture: all
+Depends:
+ wine-core (= ${binary:Version}),
+ wine-common (= ${binary:Version}),
+ desktop-file-utils,
+ hicolor-icon-theme,
+ ${misc:Depends},
+Description: Windows API implementation - desktop integration
+ Desktop files, icons, mime types, the binfmt.d handler registering
+ /usr/bin/wine for MZ/PE executables and the ntsync kernel module
+ load config.
+
+Package: wine-fonts
+Architecture: all
+Depends:
+ ${misc:Depends},
+ fontconfig-config,
+Conflicts: fonts-wine
+Replaces: fonts-wine
+Recommends:
+ fonts-liberation,
+ fonts-liberation2,
+ fonts-nanum,
+ fonts-vlgothic,
+ fonts-wqy-microhei,
+Description: Windows API implementation - font files
+ Wine's TrueType/fon fonts plus system-wide fontconfig integration
+ (20-wine-tahoma-nobitmaps.conf, tahoma/times new roman/wingdings
+ symlink farms in /usr/share/fonts).
+
+Package: wine-dev
+Section: libdevel
+Architecture: arm64
+Depends:
+ wine-core (= ${binary:Version}),
+ ${misc:Depends},
+Conflicts: libwine-dev
+Replaces: libwine-dev
+Description: Windows API implementation - development files
+ WIDL, winebuild, winegcc/wineg++, wmc, wrc, winedump, winemaker,
+ wine headers and PE import libraries.

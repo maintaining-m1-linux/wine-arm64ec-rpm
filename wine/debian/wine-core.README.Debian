@@ -1,0 +1,39 @@
+Wine (ARM64EC build for aarch64)
+================================
+
+This is the Debian packaging of an ARM64EC-enabled wine for aarch64
+hosts, converted from the Fedora `wine-git` RPM spec that used to live
+in this repository. It builds:
+
+  - wine           metapackage (core + common + desktop + fonts)
+  - wine-core      loader, wineserver, builtin PE DLLs (aarch64-windows,
+                   i386-windows, unix libs), wine.inf
+  - wine-common    wrapper scripts (winecfg, wineboot, regedit, ...)
+  - wine-desktop   desktop files, icons, binfmt.d handler, ntsync.conf
+  - wine-fonts     wine fonts + fontconfig integration
+  - wine-dev       widl, winebuild, winegcc, headers, import libraries
+
+Differences from a stock Debian wine:
+
+  * configured with --enable-archs=arm64ec,aarch64,i386 and
+    --with-mingw=llvm-mingw (bylaws llvm-mingw toolchain provides the PE
+    clang/lld 21; trixie's system lld 19 rejects winebuild's ARM64X
+    .CRT section symbols), so 32-bit Windows code runs through FEX
+    (package fex-emu-wine provides libwow64fex.dll / libarm64ecfex.dll)
+  * wine-staging patchset applied, plus the bylaws ARM64EC rebase and
+    the additional fixes listed in debian/changelog
+  * d3d8/d3d9/d3d10/d3d10core/d3d11/dxgi/d3d12(d3d12core) are managed
+    with update-alternatives, so wine-dxvk and wine-vkd3d-proton can
+    take over per DLL (wine builtin = priority 10)
+  * /usr/bin/wine and /usr/bin/wineserver are update-alternatives links
+    pointing at the 64-bit binaries
+
+The wine binfmt handler is registered via /usr/lib/binfmt.d/wine.conf;
+systemd-binfmt picks it up after installation.
+
+CJK font replacements (from the old wine-cjk patch) map SimSun/MS
+Gothic/Batang and friends to WenQuanYi/VL Gothic/Nanum families; the
+matching font packages are only Recommends of wine-fonts.
+
+Prefix layout is the usual ~/.wine; see README-tahoma (shipped in
+wine-fonts) for the tahoma bitmap configuration.

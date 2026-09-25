@@ -1,0 +1,18 @@
+--- a/dlls/mscoree/mscoree_main.c
++++ b/dlls/mscoree/mscoree_main.c
+@@ -869,6 +869,15 @@ static BOOL install_wine_mono(void)
+         return TRUE;
+     }
+ 
++    /* ARM64EC distro build: wine-mono is shipped as a runtime tree
++     * (e.g. /usr/share/wine/mono/wine-mono-<version>, see
++     * get_mono_path_unix) and the MSI bootstrap cannot run here anyway:
++     * the wine-mono installer custom action is built for a different
++     * architecture than the ARM64EC msiexec, and dl.winehq.org no
++     * longer serves the generic wine-mono-<version>.msi name. Never
++     * block boot on the mono installer. */
++    return TRUE;
++
+     TRACE("searching for mono runtime\n");
+ 
+     if (!get_mono_path(mono_path, FALSE))

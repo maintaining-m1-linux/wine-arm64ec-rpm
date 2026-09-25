@@ -1,0 +1,14 @@
+fex-emu-wine (2609.1~git2.e2f973f-1) trixie; urgency=medium
+
+  * Debian packaging, converted from the Fedora fex-emu-wine-git spec:
+    - FEX 2609.1 snapshot e2f973fe931e6dc2ce523795e51ca1ac3ca85816
+    - upstream commit patches (fortification-safe longjump, async
+      run_one, FEXServer no-timeout)
+    - host-page-size, smc-untrap-host-page and callback-code-buffer
+      patches
+    - bundled externals unpacked into External/, bylaws llvm-mingw
+      toolchain for the PE builds
+    - builds libarm64ecfex.dll (arm64ec), libwow64fex.dll (aarch64
+      mingw) and the Wine unixlibs (libarm64ecfex.so, libwow64fex.so)
+
+ -- yjlee <yjlee@localhost>  Thu, 24 Sep 2026 19:30:00 +0900

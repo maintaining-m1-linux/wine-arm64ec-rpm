@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ] || [ "$1" = "deconfigure" ]; then
+    for suffix in aarch64 i386; do
+        lib=/usr/lib/wine/$suffix-windows
+        update-alternatives --remove wine-d3d12-$suffix $lib/vkd3d-proton-d3d12.dll
+    done
+fi
+
+#DEBHELPER#

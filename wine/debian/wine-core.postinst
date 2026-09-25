@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    update-alternatives --install /usr/bin/wine wine /usr/bin/wine64 20
+    update-alternatives --install /usr/bin/wineserver wineserver /usr/bin/wineserver64 20
+
+    for suffix in aarch64 i386; do
+        lib=/usr/lib/wine/$suffix-windows
+        # drop non-symlink leftovers from older installations
+        for dll in d3d12 d3d12core; do
+            if [ -e "$lib/$dll.dll" ] && [ ! -L "$lib/$dll.dll" ]; then
+                rm -f "$lib/$dll.dll"
+            fi
+        done
+        update-alternatives --install $lib/dxgi.dll wine-dxgi-$suffix \
+            $lib/wine-dxgi.dll 10
+        update-alternatives --install $lib/d3d8.dll wine-d3d8-$suffix \
+            $lib/wine-d3d8.dll 10
+        update-alternatives --install $lib/d3d9.dll wine-d3d9-$suffix \
+            $lib/wine-d3d9.dll 10
+        update-alternatives --install $lib/d3d10.dll wine-d3d10-$suffix \
+            $lib/wine-d3d10.dll 10 \
+            --slave $lib/d3d10_1.dll wine-d3d10_1-$suffix \
+            $lib/wine-d3d10_1.dll
+        update-alternatives --install $lib/d3d10core.dll wine-d3d10core-$suffix \
+            $lib/wine-d3d10core.dll 10
+        update-alternatives --install $lib/d3d11.dll wine-d3d11-$suffix \
+            $lib/wine-d3d11.dll 10
+        update-alternatives --install $lib/d3d12.dll wine-d3d12-$suffix \
+            $lib/wine-d3d12.dll 10 \
+            --slave $lib/d3d12core.dll wine-d3d12core-$suffix \
+            $lib/wine-d3d12core.dll
+    done
+fi
+
+#DEBHELPER#

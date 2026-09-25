@@ -1,0 +1,7 @@
+usr/share/wine/fonts/
+usr/share/doc/wine-fonts/README-tahoma
+etc/fonts/conf.avail/20-wine-tahoma-nobitmaps.conf
+etc/fonts/conf.d/20-wine-tahoma-nobitmaps.conf
+usr/share/fonts/wine-tahoma-fonts/
+usr/share/fonts/wine-times-new-roman-fonts/
+usr/share/fonts/wine-wingdings-fonts/

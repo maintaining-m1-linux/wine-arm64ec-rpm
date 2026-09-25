@@ -1,0 +1,6 @@
+usr/lib/wine/aarch64-windows/libarm64ecfex.dll
+usr/lib/wine/aarch64-windows/libwow64fex.dll
+usr/lib/wine/aarch64-unix/libarm64ecfex.so
+usr/lib/wine/aarch64-unix/libwow64fex.so
+usr/bin/FEXOfflineCompiler32.exe
+usr/bin/FEXOfflineCompiler64.exe

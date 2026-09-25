@@ -1,0 +1,78 @@
+#!/usr/bin/make -f
+# Debian rules for fex-emu-wine (FEX ARM64EC/WoW64 DLLs for wine).
+# Converted from fex-emu-wine-git.spec: three cmake/ninja builds
+# (arm64ec PE, aarch64 PE, unixlib).
+
+include debian/upstream.mk
+
+DLCACHE ?= $(if $(wildcard /dlcache),/dlcache,$(CURDIR)/debian/dlcache)
+
+export CFLAGS := -O3 -g -pipe -Wall -Wextra
+export CXXFLAGS := $(CFLAGS)
+export LDFLAGS := -Wl,--gc-sections -static
+export PATH := $(CURDIR)/$(LLVM_MINGW_DIR)/bin:$(PATH)
+
+%:
+	dh $@
+
+override_dh_update_autotools_config:
+	DLCACHE=$(DLCACHE) sh debian/prepare.sh
+
+override_dh_auto_configure:
+	mkdir -p build-arm64ec && cd build-arm64ec && \
+	  cmake -DCMAKE_C_FLAGS="$(CFLAGS)" -DCMAKE_CXX_FLAGS="$(CFLAGS)" \
+	  -GNinja \
+	  -DCMAKE_INSTALL_PREFIX=/usr \
+	  -DCMAKE_INSTALL_LIBDIR=/usr/lib/wine/aarch64-windows \
+	  -DCMAKE_BUILD_TYPE=Release \
+	  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
+	  -DENABLE_LTO=False \
+	  -DTUNE_CPU=none \
+	  -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
+	  -DBUILD_TESTING=False \
+	  -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
+	  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+	  ..
+	mkdir -p build-wow64 && cd build-wow64 && \
+	  cmake -DCMAKE_C_FLAGS="$(CFLAGS)" -DCMAKE_CXX_FLAGS="$(CFLAGS)" \
+	  -GNinja \
+	  -DCMAKE_INSTALL_PREFIX=/usr \
+	  -DCMAKE_INSTALL_LIBDIR=/usr/lib/wine/aarch64-windows \
+	  -DCMAKE_BUILD_TYPE=Release \
+	  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
+	  -DENABLE_LTO=False \
+	  -DTUNE_CPU=none \
+	  -DMINGW_TRIPLE=aarch64-w64-mingw32 \
+	  -DBUILD_TESTING=False \
+	  -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
+	  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+	  ..
+	mkdir -p build-unixlib && cd build-unixlib && \
+	  LDFLAGS="-Wl,--gc-sections" \
+	  cmake -GNinja \
+	  -DCMAKE_C_COMPILER=/usr/bin/clang \
+	  -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+	  -DCMAKE_BUILD_TYPE=Release \
+	  -DCMAKE_INSTALL_PREFIX=/usr \
+	  -DCMAKE_INSTALL_LIBDIR=/usr/lib/wine/aarch64-unix \
+	  ../Source/Windows/UnixLib
+
+override_dh_auto_build:
+	sed -i 's/arm64ec-w64-mingw32-dlltool/llvm-dlltool -m arm64ec/g' build-arm64ec/build.ninja
+	ninja -C build-arm64ec
+	sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build-wow64/build.ninja
+	ninja -C build-wow64
+	ninja -C build-unixlib
+
+override_dh_auto_install:
+	DESTDIR="$(CURDIR)/debian/tmp" ninja -C build-arm64ec install
+	DESTDIR="$(CURDIR)/debian/tmp" ninja -C build-wow64 install
+	DESTDIR="$(CURDIR)/debian/tmp" ninja -C build-unixlib install
+	rm -rf debian/tmp/usr/include debian/tmp/usr/share
+
+override_dh_makeshlibs:
+	@:
+
+override_dh_dwz:
+	# dwz chokes on clang-generated debug info in these PE/unix libs
+	@:

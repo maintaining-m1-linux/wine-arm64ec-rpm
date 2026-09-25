@@ -1,0 +1,11 @@
+wine-dxvk (3.1.1~git5.25ca63f-1) trixie; urgency=medium
+
+  * Debian packaging, converted from the Fedora wine-dxvk-git spec:
+    - dxvk 3.1.1 snapshot 25ca63f17f34bdc05a39873ee63907d3cbbfa030
+    - arm64ec and i686 PE builds using bylaws llvm-mingw, winebuild
+      --builtin postprocessing
+    - ships the DLLs as dxvk-*.dll next to wine's builtin ones; per-DLL
+      selection (builtin vs DXVK) via update-alternatives
+      (dxvk priority 20, or 5 when Vulkan is not usable)
+
+ -- yjlee <yjlee@localhost>  Thu, 24 Sep 2026 19:30:00 +0900

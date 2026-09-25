@@ -1,0 +1,9 @@
+usr/lib/wine/
+usr/bin/wine64
+usr/bin/wineserver64
+usr/bin/msidb
+usr/share/wine/wine.inf
+usr/share/wine/nls
+usr/share/wine/gecko
+usr/share/wine/mono
+usr/share/wine/mono/wine-mono-11.3.0
