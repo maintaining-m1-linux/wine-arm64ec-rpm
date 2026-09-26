@@ -19,7 +19,7 @@ case "$comp" in
         URL="https://github.com/FEX-Emu/FEX/archive/e2f973fe931e6dc2ce523795e51ca1ac3ca85816/FEX-e2f973f.tar.gz"
         ;;
     wine)
-        URL="https://gitlab.winehq.org/wine/wine/-/archive/df15af3652511150490934682202d45af892f887/wine-df15af3652511150490934682202d45af892f887.tar.gz"
+        URL="${WINE_URL:-https://gitlab.winehq.org/wine/wine/-/archive/df15af3652511150490934682202d45af892f887/wine-df15af3652511150490934682202d45af892f887.tar.gz}"
         ;;
     wine-dxvk)
         URL="https://github.com/doitsujin/dxvk/archive/25ca63f17f34bdc05a39873ee63907d3cbbfa030/dxvk-25ca63f.tar.gz"
@@ -34,23 +34,38 @@ case "$comp" in
 esac
 
 echo "=== [$comp] preparing source tree"
-rm -rf "$B"
-mkdir -p "$B/work"
-cd "$B"
+STAMP_BACKUP=""
+if [ "${RESUME:-0}" = "1" ] && [ -d "$B/work" ]; then
+    echo "=== [$comp] RESUME: keeping existing build tree"
+    STAMP_BACKUP="$B/stamp-backup"
+    mkdir -p "$STAMP_BACKUP"
+    # the debian dir is refreshed below; keep the patch/configure stamps
+    cp -a "$B/work/debian/.patched" "$B/work/debian/.configured" "$STAMP_BACKUP/" 2>/dev/null || true
+else
+    rm -rf "$B"
+    mkdir -p "$B/work"
+    cd "$B"
 
-TARBALL="/dlcache/$(basename "$URL")"
-if [ ! -s "$TARBALL" ]; then
-    echo "=== [$comp] downloading $(basename "$URL")"
-    curl -fL --retry 3 -o "$TARBALL.tmp" "$URL"
-    mv "$TARBALL.tmp" "$TARBALL"
+    TARBALL="/dlcache/$(basename "$URL")"
+    if [ ! -s "$TARBALL" ]; then
+        echo "=== [$comp] downloading $(basename "$URL")"
+        curl -fL --retry 3 -o "$TARBALL.tmp" "$URL"
+        mv "$TARBALL.tmp" "$TARBALL"
+    fi
+    tar -xf "$TARBALL" -C work --strip-components=1
 fi
-tar -xf "$TARBALL" -C work --strip-components=1
+cd "$B"
 
 # patches live next to the source tree (spec's ../SOURCES layout);
 # the debian packaging goes into the tree
 cp "$HOST/$comp"/*.patch "$B/" 2>/dev/null || true
-cp -r "$HOST/$comp/debian" work/debian
-chmod +x work/debian/rules work/debian/prepare.sh 2>/dev/null || true
+rm -rf "$B/work/debian"
+cp -r "$HOST/$comp/debian" "$B/work/debian"
+if [ -n "$STAMP_BACKUP" ]; then
+    cp -a "$STAMP_BACKUP/." "$B/work/debian/" 2>/dev/null || true
+    rm -rf "$STAMP_BACKUP"
+fi
+chmod +x "$B/work/debian/rules" "$B/work/debian/prepare.sh" 2>/dev/null || true
 
 # dxvk/vkd3d-proton need winebuild (wine-dev) and its dependencies
 if [ "$comp" = "wine-dxvk" ] || [ "$comp" = "wine-vkd3d-proton" ]; then

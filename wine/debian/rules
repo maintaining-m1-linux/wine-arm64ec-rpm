@@ -7,15 +7,17 @@ include debian/upstream.mk
 
 DLCACHE ?= $(if $(wildcard /dlcache),/dlcache,$(CURDIR)/debian/dlcache)
 
-# wine-staging tarball (fetched once, kept in the download cache)
+# wine-staging tarball (not used for the 10.8 downgrade build: the
+# era-matched Fedora spec built bylaw's fork without staging)
 STAGING_TARBALL := wine-staging-$(STAGING_COMMIT).tar.gz
 STAGING_URL := https://gitlab.winehq.org/wine/wine-staging/-/archive/$(STAGING_COMMIT)/$(STAGING_TARBALL)
 
-# bylaws llvm-mingw toolchain for the PE builds: Debian trixie's system
-# lld (19) rejects the duplicate .CRT$XC bracket symbols that winebuild
-# emits for ARM64X dlls (accepted by lld >= 20, which is what Fedora 42+
-# ships). llvm-mingw 21 links them fine and is the same toolchain the
-# FEX/DXVK builds already use.
+# bylaws llvm-mingw toolchain for the PE builds: the 10.8 build uses
+# llvm-mingw 20250920 (clang/lld 21). Its lld is the first that can link
+# winebuild's ARM64X dlls (arm64ec+aarch64 objects in one image); lld 19
+# (20250305) dies with "machine type arm64 conflicts with arm64ec". The
+# clang-21-vs-10.8-header issues (__fastfail, InterlockedExchange x86 asm
+# selected for arm64ec) are handled by 2026_09_25-winnt-fastfail-arm64ec.patch.
 LLVM_MINGW_DIR := llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64
 LLVM_MINGW_TARBALL := $(LLVM_MINGW_DIR).tar.xz
 LLVM_MINGW_URL := https://github.com/bylaws/llvm-mingw/releases/download/20250920/$(LLVM_MINGW_TARBALL)
@@ -55,12 +57,6 @@ WINE_SODIRS := aarch64-unix i386-unix
 
 fetch-staging:
 	@mkdir -p $(DLCACHE)
-	@if [ ! -s $(DLCACHE)/$(STAGING_TARBALL) ]; then \
-		echo "Downloading $(STAGING_URL)"; \
-		curl -fL --retry 3 -o $(DLCACHE)/$(STAGING_TARBALL).tmp $(STAGING_URL); \
-		mv $(DLCACHE)/$(STAGING_TARBALL).tmp $(DLCACHE)/$(STAGING_TARBALL); \
-	fi
-	@cp $(DLCACHE)/$(STAGING_TARBALL) ../$(STAGING_TARBALL)
 	@if [ ! -x $(DLCACHE)/$(LLVM_MINGW_DIR)/bin/clang ]; then \
 		echo "Extracting $(LLVM_MINGW_TARBALL)"; \
 		rm -rf $(DLCACHE)/$(LLVM_MINGW_DIR); \
@@ -76,36 +72,22 @@ fetch-staging:
 
 override_dh_update_autotools_config: fetch-staging
 	# stamp-guarded so a packaging-only fix does not force a full rebuild
-	# order: wine-cjk first, then staging, then bylaws + our patches
+	# 10.8 downgrade: no staging, era-matched bylaw patch (2025.04.30);
+	# the 2026_09 master fixes and the fex bootstrap-order patch do not
+	# apply to 10.8 and are skipped
 	if [ ! -f debian/.patched ]; then \
-		patch -p1 < debian/extra/wine-cjk.patch; \
-		tar -xf ../$(STAGING_TARBALL) --strip-components=1; \
-		python3 staging/patchinstall.py DESTDIR="$(CURDIR)" --all -W server-Stored_ACLs; \
-		patch -p1 -F3 < ../2026_08_17_bylaws_rebased.patch; \
-		patch -p0 -F3 < ../wine-mono-arm.patch; \
-		patch -p1 -F3 < ../2026_08_30-arm64ec-fex-bootstrap-order.patch; \
-		for p in \
-		  2026_09_15-msvcrt-idempotent-cxx-unregister \
-		  2026_09_15-uxtheme-clip-parent-background \
-		  2026_09_15-winewayland-popup-subsurfaces \
-		  2026_09_15-d2d1-layers-primitive-blend \
-		  2026_09_15-win32u-unclamped-window-sizes \
-		  2026_09_16-win32u-protect-paint-dc \
-		  2026_09_16-winewayland-follow-host-color-scheme \
-		  2026_09_16-win32u-monitor-physical-position \
-		  2026_09_16-comctl32-groupbox-caption-row \
-		  2026_09_16-win32u-vulkan-swapchain-pnext \
-		  2026_09_16-winewayland-primary-output \
-		  2026_09_17-winewayland-decorations-default \
-		  2026_09_17-d2d1-collinear-outline-join \
-		  2026_09_17-winewayland-tiled-fixed-size \
-		  2026_09_17-winewayland-follow-output \
-		  2026_09_17-win32u-extend-virtual-modes \
-		  2026_09_17-vkd3d-shader-state-block-keywords \
-		  2026_09_18-server-scale-dpi-signed \
-		  2026_09_25-mscoree-skip-mono-msi-bootstrap ; do \
-			patch -p1 < ../$$p.patch || exit 1; \
-		done; \
+		patch -p1 -N -F3 < debian/extra/wine-cjk.patch || echo "skip wine-cjk"; \
+		patch -p1 -N -F3 < ../2025.04.30_bylaws-wine_upstream-arm64ec.patch || true; \
+		find . -name '*.rej' -delete; \
+		grep -q 'libarm64ecfex.dll' dlls/ntdll/loader.c || exit 1; \
+		grep -q 'libwow64fex.dll' dlls/wow64/syscall.c || exit 1; \
+		patch -p1 -N -F3 < ../2026_09_25-winnt-fastfail-arm64ec.patch || exit 1; \
+		patch -p1 -N -F3 < ../2026_09_25-tomcrypt-arm64ec.patch || exit 1; \
+		patch -p1 -N -F3 < ../2026_09_25-x86-asm-arm64ec-guards.patch || exit 1; \
+		patch -p1 -N -F3 < ../2026_09_25-host-teb-x18-asm.patch || exit 1; \
+		[ ! -f ../generated-arm64ec-fixups.patch ] || patch -p1 -F3 < ../generated-arm64ec-fixups.patch || echo "skip generated fixups"; \
+		patch -p0 -N -F3 < ../wine-mono-arm.patch || echo "skip wine-mono-arm"; \
+		patch -p1 -N -F3 < ../2026_09_25-mscoree-skip-mono-msi-bootstrap.patch || echo "skip mscoree patch"; \
 		sed -i 's/-Wl,-WX//g' configure; \
 		touch debian/.patched; \
 	fi
@@ -128,33 +110,6 @@ CONFFLAGS = \
 	--enable-archs=arm64ec,aarch64,i386 \
 	--with-mingw=llvm-mingw \
 	--with-wayland \
-	--enable-crtdll \
-	--enable-ctl3d32 \
-	--enable-d3d8 \
-	--enable-d3dim \
-	--enable-d3dim700 \
-	--enable-dmband \
-	--enable-dmcompos \
-	--enable-dmime \
-	--enable-dmscript \
-	--enable-dmstyle \
-	--enable-dplay \
-	--enable-dplayx \
-	--enable-dpwsockx \
-	--enable-iccvid \
-	--enable-iprop \
-	--enable-msscript_ocx \
-	--enable-msvcp70 \
-	--enable-msvcp71 \
-	--enable-msvcr70 \
-	--enable-msvcr71 \
-	--enable-msvcrt20 \
-	--enable-msvcrt40 \
-	--enable-msvcrtd \
-	--enable-olecli32 \
-	--enable-olepro32 \
-	--enable-olethk32 \
-	--enable-vdmdbg \
 	--disable-tests
 
 override_dh_auto_configure:
@@ -167,6 +122,17 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	$(MAKE) TARGETFLAGS=""
+
+override_dh_auto_clean:
+	# no-op: the build tree is reused for incremental resume builds
+	# (dpkg-buildpackage runs "clean" before build; make clean would
+	# delete every object and defeat resume-from-failure)
+	@:
+
+override_dh_autoreconf_clean:
+	# keep configure outputs (Makefile, config.status) so a resume build
+	# can re-enter make without re-configuring the whole tree
+	@:
 
 override_dh_auto_install:
 	$(MAKE) install DESTDIR="$(CURDIR)/debian/tmp" LDCONFIG=/bin/true UPDATE_DESKTOP_DATABASE=/bin/true
@@ -211,24 +177,25 @@ override_dh_auto_install:
 	mkdir -p debian/tmp/usr/share/icons/hicolor/scalable/apps
 	PROGRAM_ICONFIX='s/height="272"/height="256"/;s/width="632"/width="256"\n   x="368"\n   y="8"\n   viewBox="368, 8, 256, 256"/;'
 	MAIN_ICONFIX='s/height="272"/height="256"/;s/width="632"/width="256"\n   x="8"\n   y="8"\n   viewBox="8, 8, 256, 256"/;'
-	install -m 644 dlls/user32/resources/oic_winlogo.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/wine.svg
-	sed -i -e "$$MAIN_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/wine.svg
-	install -m 644 programs/notepad/notepad.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/notepad.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/notepad.svg
-	install -m 644 programs/regedit/regedit.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/regedit.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/regedit.svg
-	install -m 644 programs/msiexec/msiexec.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/msiexec.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/msiexec.svg
-	install -m 644 programs/winecfg/winecfg.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winecfg.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winecfg.svg
-	install -m 644 programs/winefile/winefile.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winefile.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winefile.svg
-	install -m 644 programs/winemine/winemine.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winemine.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winemine.svg
-	install -m 644 programs/winhlp32/winhelp.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/winhelp.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/winhelp.svg
-	install -m 644 programs/wordpad/wordpad.svg debian/tmp/usr/share/icons/hicolor/scalable/apps/wordpad.svg
-	sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/wordpad.svg
+	for icon in dlls/user32/resources/oic_winlogo.svg:wine.svg:MAIN \
+	            programs/notepad/notepad.svg:notepad.svg:PROG \
+	            programs/regedit/regedit.svg:regedit.svg:PROG \
+	            programs/msiexec/msiexec.svg:msiexec.svg:PROG \
+	            programs/winecfg/winecfg.svg:winecfg.svg:PROG \
+	            programs/winefile/winefile.svg:winefile.svg:PROG \
+	            programs/winemine/winemine.svg:winemine.svg:PROG \
+	            programs/winhlp32/winhelp.svg:winhelp.svg:PROG \
+	            programs/wordpad/wordpad.svg:wordpad.svg:PROG ; do \
+		src=$${icon%%:*}; rest=$${icon#*:}; dst=$${rest%%:*}; \
+		if [ -f $$src ]; then \
+			install -m 644 $$src debian/tmp/usr/share/icons/hicolor/scalable/apps/$$dst; \
+			if [ "$${rest##*:}" = "MAIN" ]; then \
+				sed -i -e "$$MAIN_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/$$dst; \
+			else \
+				sed -i -e "$$PROGRAM_ICONFIX" debian/tmp/usr/share/icons/hicolor/scalable/apps/$$dst; \
+			fi; \
+		fi; \
+	done
 	# desktop files
 	install -m 644 debian/extra/wine-*.desktop debian/tmp/usr/share/applications/
 	install -m 644 debian/extra/wine-mime-msi.desktop debian/tmp/usr/share/applications/

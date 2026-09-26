@@ -1,3 +1,17 @@
+wine (10.8-1) trixie; urgency=medium
+
+  * Downgrade to upstream wine 10.8 for KakaoTalk compatibility: the
+    Qt6 client's Themida-style protector (Vox.dll/Vox3.dll) crashes or
+    freezes under wine 11.18 + FEX; era-matched bylaw arm64ec patch
+    (2025.04.30) replaces the 11.18 rebased patch.
+  * Drop wine-staging (the era-matched Fedora build of bylaw's fork was
+    staging-free) and the 2026 master-fix patch series, which do not
+    apply to 10.8.
+  * Drop the legacy --enable-* DLL configure flags (not all exist in
+    10.8); default build covers them.
+
+ -- yjlee <yjlee@localhost>  Thu, 25 Sep 2026 16:00:00 +0900
+
 wine (11.18~git2.df15af3-2) trixie; urgency=medium
 
   * Fix 32-bit (WoW64/FEX) process startup: dpkg hardening flags added

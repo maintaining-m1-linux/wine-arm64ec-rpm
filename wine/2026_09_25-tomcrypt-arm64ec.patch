@@ -1,0 +1,16 @@
+--- a/libs/tomcrypt/src/headers/tomcrypt_macros.h
++++ b/libs/tomcrypt/src/headers/tomcrypt_macros.h
+@@ -10,6 +10,14 @@
+ 
+ /* ---- HELPER MACROS ---- */
++#if defined(__arm64ec__)
++/* ARM64EC defines __x86_64__ for source compatibility but uses the
++ * AArch64 instruction set, so the x86 rotate/bswap inline asm selected
++ * by those guards below cannot assemble. Force the portable C paths. */
++#define LTC_NO_ASM
++#define LTC_NO_BSWAP
++#endif
++
+ #ifdef ENDIAN_NEUTRAL
+ 
+ #define STORE32L(x, y)                                                                     \

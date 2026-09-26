@@ -9,7 +9,6 @@ usr/bin/regsvr32
 usr/bin/wineboot
 usr/bin/wineconsole
 usr/bin/winecfg
-usr/share/wine/winmd
 usr/share/man/man1/wine.1*
 usr/share/man/man1/wineserver.1*
 usr/share/man/man1/msiexec.1*
