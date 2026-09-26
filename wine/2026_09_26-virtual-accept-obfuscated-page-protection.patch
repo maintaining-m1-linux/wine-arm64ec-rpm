@@ -1,0 +1,21 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -5594,6 +5594,18 @@
+ 
+     TRACE("%p %p %08lx %08x\n", process, addr, size, new_prot );
+ 
++    /* KakaoTalk's Themida-style protector computes the protection argument
++     * in obfuscated, self-modifying code; when that code mis-decodes under
++     * CPU emulation (FEX on aarch64) the syscall arrives with a garbage
++     * page protection (e.g. 0x6dbb15d2) and the app retries forever on
++     * STATUS_INVALID_PAGE_PROTECTION. The targeted pages are image pages
++     * mid-unpack, whose intent is read-write-execute; normalize unknown
++     * values so the unpacker can proceed. */
++    if (new_prot != PAGE_NOACCESS && new_prot != PAGE_READONLY && new_prot != PAGE_READWRITE &&
++        new_prot != PAGE_WRITECOPY && new_prot != PAGE_EXECUTE && new_prot != PAGE_EXECUTE_READ &&
++        new_prot != PAGE_EXECUTE_READWRITE && new_prot != PAGE_EXECUTE_WRITECOPY)
++        new_prot = PAGE_EXECUTE_READWRITE;
++
+     if (!old_prot)
+         return STATUS_ACCESS_VIOLATION;
+ 

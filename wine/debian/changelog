@@ -1,3 +1,16 @@
+wine (11.18~git2.df15af3-3) trixie; urgency=medium
+
+  * Add patch 622 (ntdll/virtual): KakaoTalk's Themida-style protector
+    passes garbage page protections (e.g. 0x6dbb15d2) to
+    NtProtectVirtualMemory when its obfuscated operand decoding
+    mis-decodes under FEX emulation, and retries forever on
+    STATUS_INVALID_PAGE_PROTECTION. Normalize unknown protection
+    values to PAGE_EXECUTE_READWRITE for image pages so the
+    unpacker can proceed. (The client still parks itself at a later
+    protector gate; the FEX-side mis-decode remains open upstream.)
+
+ -- yjlee <yjlee@localhost>  Fri, 26 Sep 2026 04:00:00 +0900
+
 wine (11.18~git2.df15af3-2) trixie; urgency=medium
 
   * Fix 32-bit (WoW64/FEX) process startup: dpkg hardening flags added

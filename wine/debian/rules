@@ -106,6 +106,7 @@ override_dh_update_autotools_config: fetch-staging
 		  2026_09_25-mscoree-skip-mono-msi-bootstrap ; do \
 			patch -p1 < ../$$p.patch || exit 1; \
 		done; \
+		patch -p1 < ../2026_09_26-virtual-accept-obfuscated-page-protection.patch || exit 1; \
 		sed -i 's/-Wl,-WX//g' configure; \
 		touch debian/.patched; \
 	fi
