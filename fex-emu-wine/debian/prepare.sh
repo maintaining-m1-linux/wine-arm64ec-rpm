@@ -31,11 +31,15 @@ for p in \
     fex-emu-wine-git-host-page-size \
     fex-emu-wine-git-smc-untrap-host-page \
     fex-emu-wine-git-callback-code-buffer ; do
+    # tolerant: these may already be upstreamed on newer FEX snapshots
     echo "Applying $p"
-    patch -p1 < "$SRC/../$p.patch"
+    patch -p1 -N < "$SRC/../$p.patch" || echo "  (skipped, already applied or incompatible)"
 done
 
 # --- bundled externals (was the spec's lua table) -----------------------
+if [ -n "$(ls -A External/xxhash 2>/dev/null)" ]; then
+    echo "Externals already populated (source bundle includes submodules), skipping fetch"
+else
 external() {
     # external <owner> <name> <ref> <path-in-tree>
     owner="$1"; name="$2"; ref="$3"; dest="$4"
@@ -58,6 +62,8 @@ external martinus       unordered_dense 3234af2 External/unordered_dense
 external FEX-Emu        vixl            585d860 External/vixl
 external Cyan4973       xxhash          e626a72 External/xxhash
 external zyantific      zydis           9bfadd6 External/zydis
+
+fi
 
 # --- bylaws llvm-mingw toolchain ----------------------------------------
 LLVM_MINGW_DIR="llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64"

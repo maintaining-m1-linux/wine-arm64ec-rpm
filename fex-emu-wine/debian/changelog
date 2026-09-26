@@ -1,3 +1,16 @@
+fex-emu-wine (2611~git1.59f85d6-1) trixie; urgency=medium
+
+  * Build from the maintainer's FEX fork (gg582/FEX) at upstream
+    master 59f85d6 (FEX 2611 dev), ahead of the previous 2609.1
+    snapshot, in the KakaoTalk compatibility effort: newer FEX may
+    carry JIT/SMC fixes for Themida-protected x86-64 guests.
+  * prepare.sh: tolerate already-upstreamed bylaw patches; skip
+    externals fetch when the source bundle ships populated
+    submodules.
+  * build-component.sh: FEX_URL override for fork/pin selection.
+
+ -- yjlee <yjlee@localhost>  Fri, 26 Sep 2026 20:30:00 +0900
+
 fex-emu-wine (2609.1~git2.e2f973f-1) trixie; urgency=medium
 
   * Debian packaging, converted from the Fedora fex-emu-wine-git spec:

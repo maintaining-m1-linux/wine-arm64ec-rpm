@@ -16,7 +16,7 @@ fi
 
 case "$comp" in
     fex-emu-wine)
-        URL="https://github.com/FEX-Emu/FEX/archive/e2f973fe931e6dc2ce523795e51ca1ac3ca85816/FEX-e2f973f.tar.gz"
+        URL="${FEX_URL:-https://github.com/FEX-Emu/FEX/archive/e2f973fe931e6dc2ce523795e51ca1ac3ca85816/FEX-e2f973f.tar.gz}"
         ;;
     wine)
         URL="https://gitlab.winehq.org/wine/wine/-/archive/df15af3652511150490934682202d45af892f887/wine-df15af3652511150490934682202d45af892f887.tar.gz"
